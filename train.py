@@ -287,6 +287,14 @@ def load_model(config_path: str, epoch_or_latest: Union[str, int] = '_latest'):
         print(f"{model_path} is not exist")
     return model, parser
 
+import torch
+from torch.utils.data import DataLoader
+from transformers import AdamW, get_linear_schedule_with_warmup
+import os
+import sys
+from tqdm import tqdm
+import torch.nn.functional as nnf
+
 def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
           lr: float = 2e-5, warmup_steps: int = 5000, output_dir: str = ".", output_prefix: str = ""):
 
