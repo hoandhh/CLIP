@@ -370,7 +370,9 @@ def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
                 )
         
         progress.close()
-        print(f"Epoch {epoch}: Loss: {avg_loss:.4f}, Accuracy: {avg_acc:.4f}, BLEU-1: {avg_bleu1:.4f}, BLEU-4: {avg_bleu4:.4f}")
+        # print(f"Epoch {epoch}: Loss: {avg_loss:.4f}, Accuracy: {avg_acc:.4f}, BLEU-1: {avg_bleu1:.4f}, BLEU-4: {avg_bleu4:.4f}")
+        print(f"Epoch {epoch}: Loss: {avg_loss:.4f}, Accuracy: {avg_acc:.4f}")
+
         
         if epoch % args.save_every == 0 or epoch == epochs - 1:
             torch.save(
