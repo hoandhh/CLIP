@@ -288,101 +288,12 @@ def load_model(config_path: str, epoch_or_latest: Union[str, int] = '_latest'):
     return model, parser
 
 
-import nltk
-from nltk.translate.bleu_score import sentence_bleu
-from nltk.tokenize import word_tokenize
+# import nltk
+# from nltk.translate.bleu_score import sentence_bleu
+# from nltk.tokenize import word_tokenize
 
-# Đảm bảo đã tải punkt tokenizer
-nltk.download('punkt')
-
-def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
-          lr: float = 2e-5, warmup_steps: int = 5000, output_dir: str = ".", output_prefix: str = ""):
-
-    device = torch.device('cuda:0')
-    batch_size = args.bs
-    epochs = args.epochs
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    model = model.to(device)
-    model.train()
-    optimizer = AdamW(model.parameters(), lr=lr)
-    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=warmup_steps, num_training_steps=epochs * len(train_dataloader)
-    )
-    
-    for epoch in range(epochs):
-        print(f">>> Training epoch {epoch}")
-        sys.stdout.flush()
-        progress = tqdm(total=len(train_dataloader), desc=output_prefix)
-        total_loss = 0
-        total_acc = 0
-        total_bleu1 = 0
-        total_bleu4 = 0
-        total_samples = 0
-        
-        for idx, (tokens, mask, prefix) in enumerate(train_dataloader):
-            model.zero_grad()
-            tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
-            outputs = model(tokens, prefix, mask)
-            logits = outputs.logits[:, dataset.prefix_length - 1: -1]
-            loss = nnf.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
-            loss.backward()
-            optimizer.step()
-            scheduler.step()
-            optimizer.zero_grad()
-            
-            # Calculate accuracy
-            pred = logits.argmax(dim=-1)
-            correct = pred.eq(tokens).masked_select(mask[:, dataset.prefix_length - 1: -1].bool()).sum().item()
-            total = mask[:, dataset.prefix_length - 1: -1].sum().item()
-            
-            # Calculate BLEU scores
-            pred_texts = [dataset.tokenizer.decode(p) for p in pred]
-            true_texts = [dataset.tokenizer.decode(t) for t in tokens]
-            
-            bleu1_scores = []
-            bleu4_scores = []
-            for pred_text, true_text in zip(pred_texts, true_texts):
-                reference = word_tokenize(true_text)
-                candidate = word_tokenize(pred_text)
-                bleu1_scores.append(sentence_bleu([reference], candidate, weights=(1, 0, 0, 0)))
-                bleu4_scores.append(sentence_bleu([reference], candidate, weights=(0.25, 0.25, 0.25, 0.25)))
-            
-            total_loss += loss.item() * total
-            total_acc += correct
-            total_bleu1 += sum(bleu1_scores)
-            total_bleu4 += sum(bleu4_scores)
-            total_samples += total
-            
-            avg_loss = total_loss / total_samples
-            avg_acc = total_acc / total_samples
-            avg_bleu1 = total_bleu1 / total_samples
-            avg_bleu4 = total_bleu4 / total_samples
-            
-            progress.set_postfix({"loss": avg_loss, "acc": avg_acc, "BLEU-1": avg_bleu1, "BLEU-4": avg_bleu4})
-            progress.update()
-            
-            if (idx + 1) % 10000 == 0:
-                torch.save(
-                    model.state_dict(),
-                    os.path.join(output_dir, f"{output_prefix}_latest.pt"),
-                )
-        
-        progress.close()
-        # print(f"Epoch {epoch}: Loss: {avg_loss:.4f}, Accuracy: {avg_acc:.4f}, BLEU-1: {avg_bleu1:.4f}, BLEU-4: {avg_bleu4:.4f}")
-        print(f"Epoch {epoch}: Loss: {avg_loss:.4f}, Accuracy: {avg_acc:.4f}")
-
-        
-        if epoch % args.save_every == 0 or epoch == epochs - 1:
-            torch.save(
-                model.state_dict(),
-                os.path.join(output_dir, f"{output_prefix}-{epoch:03d}.pt"),
-            )
-    
-    return model
-
-
+# # Đảm bảo đã tải punkt tokenizer
+# nltk.download('punkt')
 
 # def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
 #           lr: float = 2e-5, warmup_steps: int = 5000, output_dir: str = ".", output_prefix: str = ""):
@@ -399,11 +310,17 @@ def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
 #     scheduler = get_linear_schedule_with_warmup(
 #         optimizer, num_warmup_steps=warmup_steps, num_training_steps=epochs * len(train_dataloader)
 #     )
-#     # save_config(args)
+    
 #     for epoch in range(epochs):
 #         print(f">>> Training epoch {epoch}")
 #         sys.stdout.flush()
 #         progress = tqdm(total=len(train_dataloader), desc=output_prefix)
+#         total_loss = 0
+#         total_acc = 0
+#         total_bleu1 = 0
+#         total_bleu4 = 0
+#         total_samples = 0
+        
 #         for idx, (tokens, mask, prefix) in enumerate(train_dataloader):
 #             model.zero_grad()
 #             tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
@@ -414,20 +331,103 @@ def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
 #             optimizer.step()
 #             scheduler.step()
 #             optimizer.zero_grad()
-#             progress.set_postfix({"loss": loss.item()})
+            
+#             # Calculate accuracy
+#             pred = logits.argmax(dim=-1)
+#             correct = pred.eq(tokens).masked_select(mask[:, dataset.prefix_length - 1: -1].bool()).sum().item()
+#             total = mask[:, dataset.prefix_length - 1: -1].sum().item()
+            
+#             # Calculate BLEU scores
+#             pred_texts = [dataset.tokenizer.decode(p) for p in pred]
+#             true_texts = [dataset.tokenizer.decode(t) for t in tokens]
+            
+#             bleu1_scores = []
+#             bleu4_scores = []
+#             for pred_text, true_text in zip(pred_texts, true_texts):
+#                 reference = word_tokenize(true_text)
+#                 candidate = word_tokenize(pred_text)
+#                 bleu1_scores.append(sentence_bleu([reference], candidate, weights=(1, 0, 0, 0)))
+#                 bleu4_scores.append(sentence_bleu([reference], candidate, weights=(0.25, 0.25, 0.25, 0.25)))
+            
+#             total_loss += loss.item() * total
+#             total_acc += correct
+#             total_bleu1 += sum(bleu1_scores)
+#             total_bleu4 += sum(bleu4_scores)
+#             total_samples += total
+            
+#             avg_loss = total_loss / total_samples
+#             avg_acc = total_acc / total_samples
+#             avg_bleu1 = total_bleu1 / total_samples
+#             avg_bleu4 = total_bleu4 / total_samples
+            
+#             progress.set_postfix({"loss": avg_loss, "acc": avg_acc, "BLEU-1": avg_bleu1, "BLEU-4": avg_bleu4})
 #             progress.update()
+            
 #             if (idx + 1) % 10000 == 0:
 #                 torch.save(
 #                     model.state_dict(),
 #                     os.path.join(output_dir, f"{output_prefix}_latest.pt"),
 #                 )
+        
 #         progress.close()
+#         # print(f"Epoch {epoch}: Loss: {avg_loss:.4f}, Accuracy: {avg_acc:.4f}, BLEU-1: {avg_bleu1:.4f}, BLEU-4: {avg_bleu4:.4f}")
+#         print(f"Epoch {epoch}: Loss: {avg_loss:.4f}, Accuracy: {avg_acc:.4f}, BLEU-1: {avg_bleu1:.4f}, BLEU-4: {avg_bleu4:.4f}")
+
+        
 #         if epoch % args.save_every == 0 or epoch == epochs - 1:
 #             torch.save(
 #                 model.state_dict(),
 #                 os.path.join(output_dir, f"{output_prefix}-{epoch:03d}.pt"),
 #             )
+    
 #     return model
+
+
+
+def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
+          lr: float = 2e-5, warmup_steps: int = 5000, output_dir: str = ".", output_prefix: str = ""):
+
+    device = torch.device('cuda:0')
+    batch_size = args.bs
+    epochs = args.epochs
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    model = model.to(device)
+    model.train()
+    optimizer = AdamW(model.parameters(), lr=lr)
+    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=warmup_steps, num_training_steps=epochs * len(train_dataloader)
+    )
+    # save_config(args)
+    for epoch in range(epochs):
+        print(f">>> Training epoch {epoch}")
+        sys.stdout.flush()
+        progress = tqdm(total=len(train_dataloader), desc=output_prefix)
+        for idx, (tokens, mask, prefix) in enumerate(train_dataloader):
+            model.zero_grad()
+            tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
+            outputs = model(tokens, prefix, mask)
+            logits = outputs.logits[:, dataset.prefix_length - 1: -1]
+            loss = nnf.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
+            loss.backward()
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+            progress.set_postfix({"loss": loss.item()})
+            progress.update()
+            if (idx + 1) % 10000 == 0:
+                torch.save(
+                    model.state_dict(),
+                    os.path.join(output_dir, f"{output_prefix}_latest.pt"),
+                )
+        progress.close()
+        if epoch % args.save_every == 0 or epoch == epochs - 1:
+            torch.save(
+                model.state_dict(),
+                os.path.join(output_dir, f"{output_prefix}-{epoch:03d}.pt"),
+            )
+    return model
 
 
 def main():
