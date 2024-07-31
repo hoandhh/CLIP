@@ -392,7 +392,7 @@ def train(dataset: ClipCocoDataset, model: ClipCaptionModel, args,
     epochs = args.epochs
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    model = model.to(device)
+    model = torch.nn.DataParallel(model, device_ids = [0,1]).to(device)
     model.train()
     optimizer = AdamW(model.parameters(), lr=lr)
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
